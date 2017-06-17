@@ -1,0 +1,16 @@
+# Ignore Rstudio project files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Ignore output files
+output/*
+*.pdf
+*.html
+*.png
+*.tiff
+*.jpg
+*.doc*
+*.xls*
+*.od*
