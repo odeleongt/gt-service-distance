@@ -23,7 +23,7 @@ library(package = "multidplyr")
 # Run scripts ----
 #------------------------------------------------------------------------------*
 
-# Load and prepare locations data
+# Load and prepare locations and roads data
 source(file = "scripts/get-geo-data.R")
 
 

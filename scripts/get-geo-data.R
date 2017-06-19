@@ -97,8 +97,74 @@ communities <- communities %>%
 
 
 
+#------------------------------------------------------------------------------*
+# Prepare roads data using paralell computing ----
+#------------------------------------------------------------------------------*
+
+# Manually create cluster
+cluster <- create_cluster()
+
+# Attach packages to cluster
+cluster_library(cluster, "sf")
+cluster_library(cluster, "tidyverse")
+
+# Load shared data into nodes
+cluster_assign_value(cluster, "roads", roads)
+cluster_assign_value(cluster, "path", paste0(getwd(), "/output/clusters/"))
+
+# Partition departments
+departments_partitioned <- departments %>%
+  partition(region_id, cluster = cluster)
+
+# Intersetc roads with departments
+roads_regions <- departments_partitioned %>%
+  do({
+    region <- .
+    report_file <- paste0(
+      path, "road_intersections_", first(region$region_id), "_", Sys.getpid()
+    )
+    
+    # report on progress
+    cat(as.character(Sys.time()), " - ", file = report_file, sep = "")
+    
+    # Get intersections
+    result <- data_frame(features = list(st_intersection(x = roads, y = .)))
+    
+    # report on progress
+    cat(as.character(Sys.time()), file = report_file, append = TRUE)
+    
+    # Return result
+    result
+  })
+
+
+# Collect intersected roads
+roads <- roads_regions %>%
+  collect %>%
+  pull(features) %>%
+  do.call(what = rbind, args = .) %>%
+  mutate(
+    road_id = paste0(
+      CAM01_, CAM01_ID, CAM02_, CAM02_ID, CAM03_, CAM03_ID, CAM04_, CAM04_ID,
+      CAM05_, CAM05_ID, CAM06_, CAM06_ID, CAM07_, CAM07_ID
+    )
+  ) %>%
+  select(region_id, road_id)
+
+
+# Remove cluster
+parallel::stopCluster(cluster)
+rm(departments_partitioned, roads_regions, cluster)
+gc()
+
+
+
+#------------------------------------------------------------------------------*
+# Save processed data and finish up ----
+#------------------------------------------------------------------------------*
+
 save(
-  departments, municipalities, services, communities,
+  departments, municipalities, services, communities, roads,
   file = "data/processed/geo-data.RData"
 )
 
