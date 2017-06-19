@@ -272,10 +272,8 @@ gc()
 # Save results ----
 #------------------------------------------------------------------------------*
 
-# Save shortest routes
-save(
-  topologies, service_routes,
-  file = "data/processed/routes.RData"
-)
+# Save topologies and shortest routes
+save(topologies, file = "data/processed/topologies.RData")
+save(service_routes, file = "data/processed/routes.RData")
 
 
