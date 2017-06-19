@@ -191,9 +191,6 @@ communities %>%
   left_join(services_region) %>%
   cluster_assign_value(cluster = cluster, name = "communities", value = .)
 
-# Share path with workers
-cluster_assign_value(cluster, "path", paste0(getwd(), "/output/clusters/"))
-
 # Partition topologies
 topo_region <- topologies %>%
   partition(region_id, cluster = cluster)
@@ -205,13 +202,7 @@ routes_region <- topo_region %>%
     region <- first(.$region_id)
     wgs_topo <- .$wgs_topo[[which(.$region_id == first(region))]]
     utm_topo <- .$utm_topo[[which(.$region_id == first(region))]]
-    report_file <- paste0(path, "routes")
     
-    # report on progress
-    cat(
-      region, ",", Sys.getpid(), ",", as.character(Sys.time()), ",", "start\n",
-      file = report_file, sep = "", append = TRUE
-    )
     
     # attempt to free memory
     gc()
@@ -247,10 +238,6 @@ routes_region <- topo_region %>%
         )
       })
     
-    # report on progress
-    cat(
-      region, ",", Sys.getpid(), ",", as.character(Sys.time()), ",", "end\n",
-      file = report_file, sep = "", append = TRUE
     )
     
     # Return results
