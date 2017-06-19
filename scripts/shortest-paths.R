@@ -166,6 +166,9 @@ cluster_library(cluster, "tidyverse")
 # Load used funtions into clusters
 cluster_assign_value(cluster, "get_route_points", get_route_points)
 
+# Share topologies data with workers
+cluster_assign_value(cluster, "topologies", topologies)
+
 # Services by region
 services_region <- services %>%
   filter(service_type == "hospital") %>%
@@ -173,8 +176,8 @@ services_region <- services %>%
   as.data.frame() %>%
   select(region_id, service_id, site_long = X, site_lat = Y)
 
-# Share communities data with workers
-communities %>%
+# Partition communities and services
+communities_part <- communities %>%
   filter(
     # Exclude errors
     !community_id %in% c(
@@ -189,56 +192,39 @@ communities %>%
   select(region_id, subregion_id, community_id, long = X, lat = Y) %>%
   # Tag with respective hospital
   left_join(services_region) %>%
-  cluster_assign_value(cluster = cluster, name = "communities", value = .)
-
-# Partition topologies
-topo_region <- topologies %>%
-  partition(region_id, cluster = cluster)
+  partition(region_id, community_id, service_id, cluster = cluster)
 
 # Get routes for each community
-routes_region <- topo_region %>%
+routes_region <- communities_part %>%
   do({
     # topology
     region <- first(.$region_id)
-    wgs_topo <- .$wgs_topo[[which(.$region_id == first(region))]]
-    utm_topo <- .$utm_topo[[which(.$region_id == first(region))]]
+    wgs_topo <- topologies$wgs_topo[[which(topologies$region_id == region)]]
+    utm_topo <- topologies$utm_topo[[which(topologies$region_id == region)]]
     
+    # Compute route
+    route <- get_route_points(
+      graph = wgs_topo,
+      from = select(., long, lat),
+      to = select(., site_long, site_lat)
+    ) %>%
+      unlist
     
-    # Compute shortest routes for region
-    results <- communities %>%
-      filter(region_id == region) %>%
-      group_by(community_id, service_id) %>%
-      do({
-        cat(.$community_id, "\n")
-        # Compute route
-        route <- get_route_points(
-          graph = wgs_topo,
-          from = select(., long, lat),
-          to = select(., site_long, site_lat)
-        ) %>%
-          unlist
-        
-        # Get route data
-        data_frame(
-          meters = get.edge.attribute(
-            graph = utm_topo,
-            name = "weight",
-            index = E(utm_topo)[route]
-          ),
-          weight = get.edge.attribute(
-            graph = wgs_topo,
-            name = "weight",
-            index = E(wgs_topo)[route]
-          ),
-          long = V(wgs_topo)[route]$x,
-          lat = V(wgs_topo)[route]$y
-        )
-      })
-    
+    # Get route data
+    data_frame(
+      meters = get.edge.attribute(
+        graph = utm_topo,
+        name = "weight",
+        index = E(utm_topo)[route]
+      ),
+      weight = get.edge.attribute(
+        graph = wgs_topo,
+        name = "weight",
+        index = E(wgs_topo)[route]
+      ),
+      long = V(wgs_topo)[route]$x,
+      lat = V(wgs_topo)[route]$y
     )
-    
-    # Return results
-    results
   })
 
 # Collect shortest routes
@@ -247,7 +233,7 @@ service_routes <- routes_region %>%
 
 # Stop cluster and clean up
 parallel::stopCluster(cluster)
-rm(cluster, topo_region, routes_region)
+rm(cluster, communities_part, routes_region)
 gc()
 
 
