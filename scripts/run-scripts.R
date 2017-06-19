@@ -10,6 +10,7 @@
 # Load used packages
 library(package = "secrlinear")
 library(package = "igraph")
+library(package = "rgeos")
 library(package = "sf")
 library(package = "stringr")
 library(package = "lubridate")
