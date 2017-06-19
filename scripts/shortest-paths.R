@@ -1,8 +1,8 @@
 
 
-#'-----------------------------------------------------------------------------*
-#' Prepare analysis environment
-#'-----------------------------------------------------------------------------*
+#------------------------------------------------------------------------------*
+#  Prepare analysis environment
+#------------------------------------------------------------------------------*
 
 # check if environment is ready
 if(! all(
@@ -22,14 +22,14 @@ load(file = "data/processed/geo-data.RData")
 
 
 
-#'-----------------------------------------------------------------------------*
-#' Route data
-#'-----------------------------------------------------------------------------*
-#' Line to Graph to Route
-#' Barry Rowlingson
-#' Introduction
-#' http://rpubs.com/geospacedman/routing
-#'-----------------------------------------------------------------------------*
+#------------------------------------------------------------------------------*
+#  Route data
+#------------------------------------------------------------------------------*
+#  Line to Graph to Route
+#  Barry Rowlingson
+#  Introduction
+#  http://rpubs.com/geospacedman/routing
+#------------------------------------------------------------------------------*
 
 
 
@@ -44,18 +44,18 @@ build_topo <- function(lines) {
   edges <- do.call(rbind, lapply(g@lines[[1]]@Lines, function(ls) {
     as.vector(t(ls@coords))
   }))
-  lengths = sqrt((edges[, 1] - edges[, 3])^2 + (edges[, 2] - edges[, 4])^2)
+  lengths <- sqrt((edges[, 1] - edges[, 3])^2 + (edges[, 2] - edges[, 4])^2)
   
-  froms = paste(edges[, 1], edges[, 2])
-  tos = paste(edges[, 3], edges[, 4])
+  froms <- paste(edges[, 1], edges[, 2])
+  tos <- paste(edges[, 3], edges[, 4])
   
-  graph = graph.edgelist(cbind(froms, tos), directed = FALSE)
+  graph <- graph.edgelist(cbind(froms, tos), directed = FALSE)
   E(graph)$weight = lengths
   
-  xy = do.call(rbind, strsplit(V(graph)$name, " "))
+  xy <- do.call(rbind, strsplit(V(graph)$name, " "))
   
-  V(graph)$x = as.numeric(xy[, 1])
-  V(graph)$y = as.numeric(xy[, 2])
+  V(graph)$x <- as.numeric(xy[, 1])
+  V(graph)$y <- as.numeric(xy[, 2])
   return(graph)
 }
 
@@ -144,12 +144,12 @@ gc()
 # node on the network then computes the vertices of the shortest path. We
 # compute a route roughly across the diagonal of the unit square.
 get_route_points <- function(graph, from, to) {
-  xyg = cbind(V(graph)$x, V(graph)$y)
+  xyg <- cbind(V(graph)$x, V(graph)$y)
   
-  ifrom = get.knnx(xyg, from, 1)$nn.index[1, 1]
-  ito = get.knnx(xyg, to, 1)$nn.index[1, 1]
+  ifrom <- get.knnx(xyg, from, 1)$nn.index[1, 1]
+  ito <- get.knnx(xyg, to, 1)$nn.index[1, 1]
   
-  p = get.shortest.paths(graph, ifrom, ito, output = "vpath")
+  p <- get.shortest.paths(graph, ifrom, ito, output = "vpath")
   p[[1]]
 }
 
@@ -277,3 +277,13 @@ save(topologies, file = "data/processed/topologies.RData")
 save(service_routes, file = "data/processed/routes.RData")
 
 
+# clean up
+rm(
+  list = setdiff(
+    c(ls(all.names = TRUE), ".original"),
+    .original
+  )
+)
+
+
+# End of script
