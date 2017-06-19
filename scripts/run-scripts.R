@@ -26,6 +26,9 @@ library(package = "multidplyr")
 # Load and prepare locations and roads data
 source(file = "scripts/get-geo-data.R")
 
+# Process road network topologies
+source(file = "scripts/shortest-paths.R")
+
 
 
 
