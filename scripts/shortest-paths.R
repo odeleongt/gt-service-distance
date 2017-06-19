@@ -204,9 +204,6 @@ routes_region <- topo_region %>%
     utm_topo <- .$utm_topo[[which(.$region_id == first(region))]]
     
     
-    # attempt to free memory
-    gc()
-    
     # Compute shortest routes for region
     results <- communities %>%
       filter(region_id == region) %>%
