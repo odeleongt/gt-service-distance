@@ -136,12 +136,145 @@ gc()
 
 
 #------------------------------------------------------------------------------*
+# Prepare shortest routes using paralell computing ----
+#------------------------------------------------------------------------------*
+
+# Shortest Path Routing
+# This function maps two points (as one-row, two-column matrices) to the nearest
+# node on the network then computes the vertices of the shortest path. We
+# compute a route roughly across the diagonal of the unit square.
+get_route_points <- function(graph, from, to) {
+  xyg = cbind(V(graph)$x, V(graph)$y)
+  
+  ifrom = get.knnx(xyg, from, 1)$nn.index[1, 1]
+  ito = get.knnx(xyg, to, 1)$nn.index[1, 1]
+  
+  p = get.shortest.paths(graph, ifrom, ito, output = "vpath")
+  p[[1]]
+}
+
+
+# Manually create cluster
+cluster <- create_cluster()
+
+# Attach packages to cluster
+cluster_library(cluster, "FNN")
+cluster_library(cluster, "igraph")
+cluster_library(cluster, "rgeos")
+cluster_library(cluster, "tidyverse")
+
+# Load used funtions into clusters
+cluster_assign_value(cluster, "get_route_points", get_route_points)
+
+# Services by region
+services_region <- services %>%
+  filter(service_type == "hospital") %>%
+  cbind(., st_coordinates(.)) %>%
+  as.data.frame() %>%
+  select(region_id, service_id, site_long = X, site_lat = Y)
+
+# Share communities data with workers
+communities %>%
+  filter(
+    # Exclude errors
+    !community_id %in% c(
+      "803019", "803049", "803051", "805012", "805014", "805028", "805044",
+      "805049", "805112", "805154", "805165", "805185", "805230", " 805458",
+      "805458", "805461", "805465"
+    )
+  ) %>%
+  cbind(., st_coordinates(.)) %>%
+  as.data.frame() %>%
+  select(region_id, subregion_id, community_id, long = X, lat = Y) %>%
+  # Tag with respective hospital
+  left_join(services_region) %>%
+  cluster_assign_value(cluster = cluster, name = "communities", value = .)
+
+# Share path with workers
+cluster_assign_value(cluster, "path", paste0(getwd(), "/output/clusters/"))
+
+# Partition topologies
+topo_region <- topologies %>%
+  partition(region_id, cluster = cluster)
+
+# Get routes for each community
+routes_region <- topo_region %>%
+  do({
+    # topology
+    region <- first(.$region_id)
+    wgs_topo <- .$wgs_topo[[which(.$region_id == first(region))]]
+    utm_topo <- .$utm_topo[[which(.$region_id == first(region))]]
+    report_file <- paste0(path, "routes")
+    
+    # report on progress
+    cat(
+      region, ",", Sys.getpid(), ",", as.character(Sys.time()), ",", "start\n",
+      file = report_file, sep = "", append = TRUE
+    )
+    
+    # attempt to free memory
+    gc()
+    
+    # Compute shortest routes for region
+    results <- communities %>%
+      filter(region_id == region) %>%
+      group_by(community_id, service_id) %>%
+      do({
+        cat(.$community_id, "\n")
+        # Compute route
+        route <- get_route_points(
+          graph = wgs_topo,
+          from = select(., long, lat),
+          to = select(., site_long, site_lat)
+        ) %>%
+          unlist
+        
+        # Get route data
+        data_frame(
+          meters = get.edge.attribute(
+            graph = utm_topo,
+            name = "weight",
+            index = E(utm_topo)[route]
+          ),
+          weight = get.edge.attribute(
+            graph = wgs_topo,
+            name = "weight",
+            index = E(wgs_topo)[route]
+          ),
+          long = V(wgs_topo)[route]$x,
+          lat = V(wgs_topo)[route]$y
+        )
+      })
+    
+    # report on progress
+    cat(
+      region, ",", Sys.getpid(), ",", as.character(Sys.time()), ",", "end\n",
+      file = report_file, sep = "", append = TRUE
+    )
+    
+    # Return results
+    results
+  })
+
+# Collect shortest routes
+service_routes <- routes_region %>%
+  collect()
+
+# Stop cluster and clean up
+parallel::stopCluster(cluster)
+rm(cluster, topo_region, routes_region)
+gc()
+
+
+
+
+#------------------------------------------------------------------------------*
 # Save results ----
 #------------------------------------------------------------------------------*
 
 # Save shortest routes
 save(
-  topologies,
+  topologies, service_routes,
   file = "data/processed/routes.RData"
 )
 
