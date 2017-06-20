@@ -10,6 +10,7 @@
 # Load used packages
 library(package = "secrlinear")
 library(package = "igraph")
+library(package = "raster")
 library(package = "rgeos")
 library(package = "sf")
 library(package = "stringr")
@@ -32,6 +33,11 @@ if(!file.exists("data/processed/geo-data.RData")){
 # Process road network topologies and compute shortest paths
 if(!file.exists("data/processed/routes.RData")){
   source(file = "scripts/shortest-paths.R")
+}
+
+# Assign altitudes to routes vertices
+if(!file.exists("data/processed/routes-altitude.RData")){
+  source(file = "scripts/route-altitudes.R")
 }
 
 
