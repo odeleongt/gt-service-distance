@@ -25,10 +25,14 @@ library(package = "multidplyr")
 #------------------------------------------------------------------------------*
 
 # Load and prepare locations and roads data
-source(file = "scripts/get-geo-data.R")
+if(!file.exists("data/processed/geo-data.RData")){
+  source(file = "scripts/get-geo-data.R")
+}
 
 # Process road network topologies and compute shortest paths
-source(file = "scripts/shortest-paths.R")
+if(!file.exists("data/processed/routes.RData")){
+  source(file = "scripts/shortest-paths.R")
+}
 
 
 
