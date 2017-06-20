@@ -229,7 +229,8 @@ routes_region <- communities_part %>%
 
 # Collect shortest routes
 service_routes <- routes_region %>%
-  collect()
+  collect() %>%
+  ungroup()
 
 # Stop cluster and clean up
 parallel::stopCluster(cluster)
